@@ -4,7 +4,7 @@
  */
 
 const DB_NAME = 'WebpageClipperDB';
-const DB_VERSION = 2;
+const DB_VERSION = 1;
 const STORE_NAME = 'clippedPages';
 
 // Database connection
@@ -13,26 +13,24 @@ let db = null;
 // Initialize the database
 async function initDB() {
   const request = indexedDB.open(DB_NAME, DB_VERSION);
-
+  
   // Handle database upgrade (called when DB is created or version changes)
   request.onupgradeneeded = (event) => {
     const db = event.target.result;
-    const oldVersion = event.oldVersion;
-
-    if (oldVersion < 1) {
-      // Initial schema creation
+    
+    // Create the object store (table) if it doesn't exist
+    if (!db.objectStoreNames.contains(STORE_NAME)) {
+      // Create a store with autoIncrement ID as key
       const store = db.createObjectStore(STORE_NAME, { keyPath: 'id', autoIncrement: true });
+      
+      // Define indexes for faster queries
       store.createIndex('url', 'url', { unique: false });
       store.createIndex('timestamp', 'timestamp', { unique: false });
+      
       console.log('Database schema created');
     }
-
-    if (oldVersion < 2) {
-      // No structural changes needed; just logging upgrade
-      console.log('Migrated to schema version 2: added wordCount, readingTime, and favicon support');
-    }
   };
-
+  
   try {
     db = await new Promise((resolve, reject) => {
       request.onsuccess = () => {
@@ -54,25 +52,24 @@ async function addClippedPage(pageData) {
   if (!db) {
     throw new Error('Database not initialized');
   }
-
-  // Ensure all fields are included, even if missing or undefined
-  const data = {
-    title: pageData.title || 'Untitled',
-    url: pageData.url || '',
-    content: pageData.content || '',
-    timestamp: pageData.timestamp || new Date().toISOString(),
-    favicon: pageData.favicon || '',
-    wordCount: Number.isFinite(pageData.wordCount) ? pageData.wordCount : 0,
-    readingTime: Number.isFinite(pageData.readingTime) ? pageData.readingTime : 1
+  
+  // Add timestamp if not provided
+  const data = { 
+    ...pageData,
+    timestamp: pageData.timestamp || new Date().toISOString()
   };
-
+  
   try {
     const transaction = db.transaction([STORE_NAME], 'readwrite');
     const store = transaction.objectStore(STORE_NAME);
     const request = store.add(data);
     const result = await new Promise((resolve, reject) => {
-      request.onsuccess = () => resolve(request.result);
-      request.onerror = (event) => reject(event.target.error);
+      request.onsuccess = () => {
+        resolve(request.result); // returns the generated id
+      };
+      request.onerror = (event) => {
+        reject(event.target.error);
+      };
     });
     console.log('Page clipped successfully');
     return result;
@@ -87,14 +84,18 @@ async function getAllClippedPages() {
   if (!db) {
     throw new Error('Database not initialized');
   }
-
+  
   try {
     const transaction = db.transaction([STORE_NAME], 'readonly');
     const store = transaction.objectStore(STORE_NAME);
     const request = store.getAll();
     const result = await new Promise((resolve, reject) => {
-      request.onsuccess = () => resolve(request.result);
-      request.onerror = (event) => reject(event.target.error);
+      request.onsuccess = () => {
+        resolve(request.result);
+      };
+      request.onerror = (event) => {
+        reject(event.target.error);
+      };
     });
     return result;
   } catch (error) {
@@ -108,14 +109,18 @@ async function deleteClippedPage(id) {
   if (!db) {
     throw new Error('Database not initialized');
   }
-
+  
   try {
     const transaction = db.transaction([STORE_NAME], 'readwrite');
     const store = transaction.objectStore(STORE_NAME);
     const request = store.delete(id);
     await new Promise((resolve, reject) => {
-      request.onsuccess = () => resolve();
-      request.onerror = (event) => reject(event.target.error);
+      request.onsuccess = () => {
+        resolve();
+      };
+      request.onerror = (event) => {
+        reject(event.target.error);
+      };
     });
     console.log(`Page with ID ${id} deleted successfully`);
   } catch (error) {
@@ -129,14 +134,18 @@ async function clearAllClippedPages() {
   if (!db) {
     throw new Error('Database not initialized');
   }
-
+  
   try {
     const transaction = db.transaction([STORE_NAME], 'readwrite');
     const store = transaction.objectStore(STORE_NAME);
     const request = store.clear();
     await new Promise((resolve, reject) => {
-      request.onsuccess = () => resolve();
-      request.onerror = (event) => reject(event.target.error);
+      request.onsuccess = () => {
+        resolve();
+      };
+      request.onerror = (event) => {
+        reject(event.target.error);
+      };
     });
     console.log('All pages cleared successfully');
   } catch (error) {
@@ -145,7 +154,7 @@ async function clearAllClippedPages() {
   }
 }
 
-// Export the database API globally
+// Export the API
 window.WebpageClipperDB = {
   init: initDB,
   addPage: addClippedPage,
