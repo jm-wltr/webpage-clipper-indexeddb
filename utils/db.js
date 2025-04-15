@@ -55,9 +55,15 @@ async function addClippedPage(pageData) {
     throw new Error('Database not initialized');
   }
 
+  // Ensure all fields are included, even if missing or undefined
   const data = {
-    ...pageData,
-    timestamp: pageData.timestamp || new Date().toISOString()
+    title: pageData.title || 'Untitled',
+    url: pageData.url || '',
+    content: pageData.content || '',
+    timestamp: pageData.timestamp || new Date().toISOString(),
+    favicon: pageData.favicon || '',
+    wordCount: Number.isFinite(pageData.wordCount) ? pageData.wordCount : 0,
+    readingTime: Number.isFinite(pageData.readingTime) ? pageData.readingTime : 1
   };
 
   try {
