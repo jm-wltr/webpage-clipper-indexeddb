@@ -51,6 +51,7 @@ async function renderClippedPages() {
         <div class="clip-date">${formatDate(page.timestamp)}</div>
         <div class="clip-content">${page.content}</div>
         <div class="clip-wordcount">Word count: ${page.wordcount}</div>
+        <div class="metadata-item">Reading time: ${page.readingTime} min</div>
         <button class="delete-btn" data-id="${page.id}">×</button>
       `;
       
